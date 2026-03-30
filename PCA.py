@@ -1,48 +1,63 @@
 import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.datasets import load_digits
+from sklearn.model_selection import train_test_split
+from sklearn.decomposition import PCA
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.metrics import accuracy_score
 
-class PCA_FromScratch:
+# 1. Setup Mock Data 
+print("Loading data...")
+data = load_digits()
+X = data.data
+y = data.target
 
-    def __init__(self, n_components):
+# Split into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-        # Number of principal components we want to keep
-        self.n_components = n_components
+# 2. Define the variance levels you want to test
+variance_levels = [0.50, 0.75, 0.85, 0.90, 0.95, 0.99, 1.0]
 
+results = []
 
-    def fit(self, X):
+print("\n--- Starting PCA Trade-off Analysis ---")
 
-        # Step 1: Compute the mean of each feature
-        # Used later to center the data
-        self.mean = np.mean(X, axis=0)
+for var in variance_levels:
+    if var == 1.0:
+        # No PCA - Baseline
+        X_train_pca = X_train
+        X_test_pca = X_test
+        n_components = X_train.shape[1]
+    else:
+        pca = PCA(n_components=var, random_state=42)
+        
+        X_train_pca = pca.fit_transform(X_train)
+        X_test_pca = pca.transform(X_test)
+        n_components = pca.n_components_
 
-        # Step 2: Mean Centering
-        # Subtract the mean so the data is centered around zero
-        X_centered = X - self.mean
+    # Train a baseline model
+    knn = KNeighborsClassifier(n_neighbors=5)
+    knn.fit(X_train_pca, y_train)
+    
+    # Predict and calculate accuracy
+    y_pred = knn.predict(X_test_pca)
+    acc = accuracy_score(y_test, y_pred)
+    
+    # Save the results
+    results.append((var, n_components, acc))
+    
+    # Print the step results
+    print(f"Target Variance: {var*100:>5.1f}% | Components Kept: {n_components:>3} out of {X_train.shape[1]} | Model Accuracy: {acc*100:.2f}%")
 
-        # Step 3: Compute covariance matrix
-        # Covariance matrix describes how features vary together
-        cov_matrix = np.cov(X_centered, rowvar=False)
+# 4. Optional: Visualize the Trade-off for your team presentation
+variances, components, accuracies = zip(*results)
 
-        # Step 4: Eigen decomposition
-        # Eigenvectors = directions of maximum variance
-        # Eigenvalues = amount of variance in each direction
-        eigenvalues, eigenvectors = np.linalg.eig(cov_matrix)
+plt.figure(figsize=(10, 5))
 
-        # Step 5: Sort eigenvectors by descending eigenvalues
-        # Largest variance components come first
-        idx = np.argsort(eigenvalues)[::-1]
-
-        eigenvectors = eigenvectors[:, idx]
-
-        # Step 6: Select top k eigenvectors
-        # These become the principal components
-        self.components = eigenvectors[:, :self.n_components]
-
-
-    def transform(self, X):
-
-        # Step 7: Center the data using training mean
-        X_centered = X - self.mean
-
-        # Step 8: Project data onto principal components
-        # X_reduced = X_centered * W
-        return np.dot(X_centered, self.components)
+# Plot Accuracy vs Components
+plt.plot(components, accuracies, marker='o', linestyle='-', color='b')
+plt.title('PCA Compression vs. KNN Accuracy Trade-off')
+plt.xlabel('Number of PCA Components (Data Size)')
+plt.ylabel('Model Accuracy')
+plt.grid(True)
+plt.show()
