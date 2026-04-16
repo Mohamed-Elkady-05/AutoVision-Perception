@@ -33,17 +33,17 @@ class ensemble():
     Xp = self._prepare(X,False)
 
     if model == 'rf':
-      return self.model[0].predict(Xp)
+      return self.models[0].predict(Xp)
     elif model == 'gb':
-      return self.model[1].predict(Xp)
+      return self.models[1].predict(Xp)
     elif model == 'ada':
-      return self.model[2].predict(Xp)
+      return self.models[2].predict(Xp)
     
   def evaluate(self, X, y, model='rf'):
     y_pred = self.predict(X, model)
     return {
         'accuracy': accuracy_score(y, y_pred),
-        'precision': precision_score(y, y_pred),
-        'recall': recall_score(y, y_pred),
-        'f1': f1_score(y, y_pred)
+        'precision': precision_score(y, y_pred, average='macro'),
+        'recall': recall_score(y, y_pred, average='macro'),
+        'f1': f1_score(y, y_pred, average='macro')
     }
