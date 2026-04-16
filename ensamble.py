@@ -44,14 +44,28 @@ class Ensemble_models():
 
     if model == 'rf':
       return self.models[0].predict(Xp)
+<<<<<<< HEAD
     elif model == 'voting':
       return self.models[1].predict(Xp)
+=======
+    elif model == 'gb':
+      return self.models[1].predict(Xp)
+    elif model == 'ada':
+      return self.models[2].predict(Xp)
+>>>>>>> 982a40c62cf16eacca85f32256eaaf7cc4bb4d5d
     
   def evaluate(self, X, y, model='voting'):
     y_pred = self.predict(X, model)
     return {
         'accuracy': accuracy_score(y, y_pred),
+<<<<<<< HEAD
         'precision': precision_score(y, y_pred, average = 'macro'),
         'recall': recall_score(y, y_pred, average = 'macro'),
         'f1': f1_score(y, y_pred, average = 'macro')
     }, y_pred
+=======
+        'precision': precision_score(y, y_pred, average='macro'),
+        'recall': recall_score(y, y_pred, average='macro'),
+        'f1': f1_score(y, y_pred, average='macro')
+    }
+>>>>>>> 982a40c62cf16eacca85f32256eaaf7cc4bb4d5d
