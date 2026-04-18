@@ -1,5 +1,3 @@
-from PIL.Image import v
-
 import torch as th
 import torch.optim as opt
 from torch.optim import lr_scheduler
@@ -25,7 +23,7 @@ class TrainerOpt:
         elif scheduler_name == 'plateau':
             self.scheduler = lr_scheduler.ReduceLROnPlateau(self.optimizer, mode='min', factor=0.1, patience=5)
     
-    def train_step(self,X_train,criterion):
+    def train_epoch(self,X_train,criterion):
         self.model.train()
         total_loss = 0
 
@@ -40,6 +38,27 @@ class TrainerOpt:
             total_loss += loss.item()
         
         avg_loss = (total_loss / len(X_train))
-        if self.scheduler and not isinstance(self.scheduler, lr_scheduler.ReduceLROnPlateau):
-            self.scheduler.step(val_loss=avg_loss)
         return avg_loss
+        
+    def evaluate(self, loader, criterion):
+      self.model.eval()
+      val_loss = 0
+      correct = 0
+      total = 0
+      with th.no_grad():
+          for img, lab in loader:
+              img, lab = img.to(self.device), lab.to(self.device)
+              output = self.model(img)
+              loss = criterion(output, lab)
+              val_loss += loss.item()
+              _, pred = th.max(output, 1)
+              total += lab.size(0)
+              correct += (pred == lab).sum().item()
+      
+      avg_loss = val_loss / len(loader)
+      acc = 100 * correct / total
+      
+      if self.scheduler:
+          self.scheduler.step(avg_loss)
+          
+      return avg_loss, acc
