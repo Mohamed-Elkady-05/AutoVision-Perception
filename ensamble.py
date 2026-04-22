@@ -1,5 +1,5 @@
 import numpy as np
-from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, AdaBoostClassifier, VotingClassifier
+from sklearn.ensemble import RandomForestClassifier, HistGradientBoostingClassifier, AdaBoostClassifier, VotingClassifier
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score 
 from sklearn.preprocessing import StandardScaler
 
@@ -10,7 +10,7 @@ class Ensemble_models():
     self.scaler = StandardScaler() if use_scaler else None
     
     rf = RandomForestClassifier(n_estimators=n_estimators, random_state=42, max_depth=max_depth, n_jobs=-1)
-    gb = GradientBoostingClassifier(n_estimators=n_estimators, random_state=42, max_depth=max_depth)
+    gb = HistGradientBoostingClassifier(max_iter=self.n_estimators, max_depth=self.max_depth, random_state=42)
     ada = AdaBoostClassifier(n_estimators=n_estimators, random_state=42)
     
     self.voting = VotingClassifier(
