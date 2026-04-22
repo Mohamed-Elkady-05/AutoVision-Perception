@@ -4,3 +4,5 @@ Pillow
 scikit-learn
 torch
 torchvision
+matplotlib
+seaborn

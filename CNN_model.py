@@ -30,11 +30,28 @@ class TrafficSignCNN(nn.Module):
         
         self.fc2 = nn.Linear(512, num_classes)
 
+    def extract_feature_maps(self, x):
+        """Return intermediate convolutional activations for visualization."""
+        conv1 = F.relu(self.conv1(x))
+        x = self.pool1(conv1)
+
+        conv2 = F.relu(self.conv2(x))
+        x = self.pool2(conv2)
+
+        conv3 = F.relu(self.conv3(x))
+        x = self.pool3(conv3)
+
+        return {
+            'conv1': conv1,
+            'conv2': conv2,
+            'conv3': conv3,
+            'final': x,
+        }
+
     def forward(self, x):
         # Pass through Conv -> ReLU -> Pool sequence
-        x = self.pool1(F.relu(self.conv1(x)))
-        x = self.pool2(F.relu(self.conv2(x)))
-        x = self.pool3(F.relu(self.conv3(x)))
+        features = self.extract_feature_maps(x)
+        x = features['final']
         
         x = x.view(-1, 128 * 4 * 4)
         
