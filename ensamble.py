@@ -10,7 +10,7 @@ class Ensemble_models():
     self.scaler = StandardScaler() if use_scaler else None
     
     rf = RandomForestClassifier(n_estimators=n_estimators, random_state=42, max_depth=max_depth, n_jobs=-1)
-    gb = HistGradientBoostingClassifier(max_iter=self.n_estimators, max_depth=self.max_depth, random_state=42)
+    gb = HistGradientBoostingClassifier(max_iter=self.n_estimators, max_depth=max_depth, random_state=42)
     ada = AdaBoostClassifier(n_estimators=n_estimators, random_state=42)
     
     self.voting = VotingClassifier(
