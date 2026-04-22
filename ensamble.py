@@ -1,31 +1,27 @@
 import numpy as np
-from sklearn.ensemble import RandomForestClassifier ,  GradientBoostingClassifier, AdaBoostClassifier ,VotingClassifier
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, AdaBoostClassifier, VotingClassifier
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score 
 from sklearn.preprocessing import StandardScaler
 
 class Ensemble_models():
-  def __init__(self, n_estimators=100, use_scaler=True):
+  def __init__(self, n_estimators=100, use_scaler=True, max_depth=5):
     self.n_estimators = n_estimators
     self.use_scaler = use_scaler
     self.scaler = StandardScaler() if use_scaler else None
     
-    # Bagging
-    rf = RandomForestClassifier(n_estimators=n_estimators, random_state=42)
-    # Boosting
-    gb = GradientBoostingClassifier(n_estimators=n_estimators, random_state=42)
+    rf = RandomForestClassifier(n_estimators=n_estimators, random_state=42, max_depth=max_depth, n_jobs=-1)
+    gb = GradientBoostingClassifier(n_estimators=n_estimators, random_state=42, max_depth=max_depth)
     ada = AdaBoostClassifier(n_estimators=n_estimators, random_state=42)
-    voting = VotingClassifier(
+    
+    self.voting = VotingClassifier(
             estimators=[
                 ('rf', rf),
                 ('ada', ada),
                 ('gb', gb)
             ],
-            voting='soft'  
+            voting='soft',
+            n_jobs=-1 
         )
-
-    self.models = [rf,voting]
-
-    
   
   def _prepare(self, X, fit=False):
         if self.scaler is not None:
@@ -36,22 +32,21 @@ class Ensemble_models():
 
   def fit(self, X, y):
     X = self._prepare(X, fit=True)
-    for model in self.models:
-      model.fit(X, y)
+    self.voting.fit(X, y)
   
-  def predict(self, X , model='rf'):
-    Xp = self._prepare(X,False)
+  def predict(self, X, model='rf'):
+    Xp = self._prepare(X, False)
 
     if model == 'rf':
-      return self.models[0].predict(Xp)
+      return self.voting.named_estimators_['rf'].predict(Xp)
     elif model == 'voting':
-      return self.models[1].predict(Xp)
+      return self.voting.predict(Xp)
     
   def evaluate(self, X, y, model='voting'):
     y_pred = self.predict(X, model)
     return {
         'accuracy': accuracy_score(y, y_pred),
-        'precision': precision_score(y, y_pred, average = 'macro'),
-        'recall': recall_score(y, y_pred, average = 'macro'),
-        'f1': f1_score(y, y_pred, average = 'macro')
+        'precision': precision_score(y, y_pred, average='macro', zero_division=0),
+        'recall': recall_score(y, y_pred, average='macro', zero_division=0),
+        'f1': f1_score(y, y_pred, average='macro', zero_division=0)
     }, y_pred
