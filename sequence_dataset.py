@@ -231,7 +231,7 @@ class SequenceDataset(Dataset):
         if self.augment_sequences and self.split == "train":
             sequence = self._augment_sequence(sequence)
         
-        return torch.from_numpy(sequence), torch.tensor(label, dtype=torch.long)
+        return torch.from_numpy(sequence.copy()), torch.tensor(label, dtype=torch.long)
     
     def _augment_sequence(self, sequence: np.ndarray) -> np.ndarray:
         """
