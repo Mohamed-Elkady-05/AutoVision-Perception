@@ -58,6 +58,14 @@ def load_data(
         seed         = 42,
     )
 
+    def cast_loader(loader):
+        for sequences, labels in loader:
+            yield sequences.float(), labels
+
+    train_loader = cast_loader(train_loader)
+    val_loader   = cast_loader(val_loader)
+    test_loader  = cast_loader(test_loader)
+
     print(f"Train batches : {len(train_loader)}")
     print(f"Val   batches : {len(val_loader)}")
     print(f"Test  batches : {len(test_loader)}")
