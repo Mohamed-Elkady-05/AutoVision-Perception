@@ -12,7 +12,7 @@ from base_sequential_models import GRUModel
 from unified_trainer import UnifiedTrainer
 
 
-FEATURES_DIR   = "/content/drive/MyDrive/gtsrb_cache"
+FEATURES_DIR   = "/content/drive/MyDrive/gtsrb_cache/npy"
 RESULTS_DIR    = "./results"
 CHECKPOINT_DIR = "./checkpoints"
 BATCH_SIZE     = 32
