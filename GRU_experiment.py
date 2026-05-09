@@ -1,16 +1,9 @@
 """
 GRU Model Training - GTSRB Traffic Sign Classification
-
-Usage in notebook:
-    from gru_training import load_data, build_model, train_model, evaluate_model
-
-    train_loader, val_loader, test_loader = load_data()
-    model                                 = build_model()
-    trainer                               = train_model(model, train_loader, val_loader)
-    metrics                               = evaluate_model(trainer, test_loader)
 """
 
 import torch
+from torch.utils.data import DataLoader
 from pathlib import Path
 
 from config import TrainingConfig
@@ -18,11 +11,6 @@ from sequence_dataset import create_sequence_dataloaders
 from base_sequential_models import GRUModel
 from unified_trainer import UnifiedTrainer
 
-
-# ==============================================================================
-# DEFAULT SETTINGS
-# Can be overridden by passing arguments to each function
-# ==============================================================================
 
 FEATURES_DIR   = "/content/drive/MyDrive/gtsrb_cache"
 RESULTS_DIR    = "./results"
@@ -32,24 +20,24 @@ NUM_WORKERS    = 0
 NUM_EPOCHS     = 30
 
 
-# ==============================================================================
-# FUNCTIONS
-# ==============================================================================
+# Wrapper that casts sequences to float32 without breaking len()
+class Float32Loader:
+    def __init__(self, loader):
+        self.loader = loader
+
+    def __len__(self):
+        return len(self.loader)
+
+    def __iter__(self):
+        for sequences, labels in self.loader:
+            yield sequences.float(), labels
+
 
 def load_data(
     features_dir = FEATURES_DIR,
     batch_size   = BATCH_SIZE,
     num_workers  = NUM_WORKERS,
 ):
-    """
-    Load the dataset and return the three DataLoaders.
-
-    Returns:
-        train_loader, val_loader, test_loader
-    
-    Example:
-        train_loader, val_loader, test_loader = load_data()
-    """
     train_loader, val_loader, test_loader = create_sequence_dataloaders(
         features_dir = features_dir,
         batch_size   = batch_size,
@@ -58,13 +46,9 @@ def load_data(
         seed         = 42,
     )
 
-    def cast_loader(loader):
-        for sequences, labels in loader:
-            yield sequences.float(), labels
-
-    train_loader = cast_loader(train_loader)
-    val_loader   = cast_loader(val_loader)
-    test_loader  = cast_loader(test_loader)
+    train_loader = Float32Loader(train_loader)
+    val_loader   = Float32Loader(val_loader)
+    test_loader  = Float32Loader(test_loader)
 
     print(f"Train batches : {len(train_loader)}")
     print(f"Val   batches : {len(val_loader)}")
@@ -79,29 +63,13 @@ def build_model(
     bidirectional = True,
     dropout       = 0.3,
 ):
-    """
-    Build and return the GRU model.
-
-    Args:
-        hidden_size   : GRU internal memory size (try 128, 256, 512)
-        num_layers    : number of stacked GRU layers (try 1, 2, 3)
-        bidirectional : read sequence forwards and backwards
-        dropout       : dropout probability
-
-    Returns:
-        model (GRUModel)
-
-    Example:
-        model = build_model()
-        model = build_model(hidden_size=512, num_layers=3)
-    """
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     model = GRUModel(
-        input_size    = 512,        # VGG16 output size, fixed
+        input_size    = 512,
         hidden_size   = hidden_size,
         num_layers    = num_layers,
-        output_size   = 43,         # 43 GTSRB classes, fixed
+        output_size   = 43,
         dropout       = dropout,
         bidirectional = bidirectional,
         device        = device,
@@ -123,29 +91,6 @@ def train_model(
     weight_decay   = 1e-4,
     checkpoint_dir = CHECKPOINT_DIR,
 ):
-    """
-    Train the GRU model and return the trainer (which holds the full history).
-
-    Args:
-        model         : GRUModel returned by build_model()
-        train_loader  : training DataLoader from load_data()
-        val_loader    : validation DataLoader from load_data()
-        num_epochs    : max number of training epochs
-        learning_rate : optimizer learning rate
-        weight_decay  : L2 regularization strength
-        checkpoint_dir: where to save the best model weights
-
-    Returns:
-        trainer (UnifiedTrainer)
-            trainer.history        -> loss and accuracy per epoch
-            trainer.best_val_acc   -> best validation accuracy achieved
-            trainer.best_epoch     -> epoch at which best val acc occurred
-
-    Example:
-        trainer = train_model(model, train_loader, val_loader)
-        print(trainer.best_val_acc)
-        print(trainer.history["val_acc"])
-    """
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     Path(checkpoint_dir).mkdir(parents=True, exist_ok=True)
@@ -160,12 +105,12 @@ def train_model(
     config.DEVICE                   = device
 
     trainer = UnifiedTrainer(
-        model          = model,
-        train_loader   = train_loader,
-        val_loader     = val_loader,
-        config         = config,
-        device         = device,
-        save_dir       = checkpoint_dir,
+        model        = model,
+        train_loader = train_loader,
+        val_loader   = val_loader,
+        config       = config,
+        device       = device,
+        save_dir     = checkpoint_dir,
     )
 
     trainer.train(num_epochs=num_epochs)
@@ -178,27 +123,6 @@ def evaluate_model(
     test_loader,
     results_dir = RESULTS_DIR,
 ):
-    """
-    Evaluate the trained model on the test set and save results.
-
-    Args:
-        trainer     : UnifiedTrainer returned by train_model()
-        test_loader : test DataLoader from load_data()
-        results_dir : where to save the plots and metrics JSON
-
-    Returns:
-        metrics (dict)
-            metrics["accuracy"]         -> overall accuracy
-            metrics["precision"]        -> macro precision
-            metrics["recall"]           -> macro recall
-            metrics["f1"]               -> macro F1 score
-            metrics["confusion_matrix"] -> confusion matrix array
-
-    Example:
-        metrics = evaluate_model(trainer, test_loader)
-        print(metrics["accuracy"])
-        print(metrics["confusion_matrix"])
-    """
     Path(results_dir).mkdir(parents=True, exist_ok=True)
 
     metrics = trainer.evaluate(test_loader)
