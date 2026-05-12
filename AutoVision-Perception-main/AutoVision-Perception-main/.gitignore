@@ -1,0 +1,17 @@
+.qodo
+.vscode
+.idea
+*.log
+*.tmp
+*.bak
+node_modules
+dist
+build
+coverage
+.DS_Store
+.env
+.env.local
+.env.development
+.env.test
+_pycache__
+*.pyc
