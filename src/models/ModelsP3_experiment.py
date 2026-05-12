@@ -6,10 +6,10 @@ import torch
 from torch.utils.data import DataLoader
 from pathlib import Path
 
-from config import TrainingConfig
+from src.config import TrainingConfig
 from src.detection.sequence_dataset import create_sequence_dataloaders
-from base_sequential_models import GRU_Model, RNN_Model
-from unified_trainer import UnifiedTrainer
+from src.models.base_sequential_models import GRU_Model, RNN_Model
+from src.models.unified_trainer import UnifiedTrainer
 
 
 FEATURES_DIR   = "/content/drive/MyDrive/gtsrb_cache/npy"

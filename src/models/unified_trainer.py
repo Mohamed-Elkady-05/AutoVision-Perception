@@ -42,8 +42,8 @@ from sklearn.metrics import (
     confusion_matrix, classification_report
 )
 
-from base_sequential_models import BaseSequentialModel
-from config import TrainingConfig
+from src.models.base_sequential_models import BaseSequentialModel
+from src.config import TrainingConfig
 
 
 class UnifiedTrainer:
