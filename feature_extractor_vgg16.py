@@ -68,7 +68,7 @@ class VGG16FeatureExtractor:
         
         # Preprocessing transforms (ImageNet normalization)
         self.transforms = transforms.Compose([
-            transforms.Resize(self.config.DEVICE if isinstance(self.config.DEVICE, tuple) else (224, 224)),
+            transforms.Resize(DatasetConfig.IMAGE_SIZE),
             transforms.ToTensor(),
             transforms.Normalize(
                 mean=DatasetConfig.NORMALIZE_MEAN,

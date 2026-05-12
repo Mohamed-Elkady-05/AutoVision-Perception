@@ -6,3 +6,6 @@ torch
 torchvision
 matplotlib
 seaborn
+gradio>=4.44.1
+huggingface_hub>=0.24.0
+opencv-python-headless>=4.10.0.84

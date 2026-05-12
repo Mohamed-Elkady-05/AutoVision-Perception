@@ -70,11 +70,11 @@ def example_create_dataloaders():
     
     train_loader, val_loader, test_loader = create_sequence_dataloaders(
         features_dir="./cache/vgg16_features",
-        sequence_length=DatasetConfig.SEQUENCE_LENGTH,
         batch_size=32,
         num_workers=4,
         augment=True,
-        seed=42
+      seed=42,
+      return_metadata=False,
     )
     
     print(f"Train batches: {len(train_loader)}")
@@ -82,7 +82,7 @@ def example_create_dataloaders():
     print(f"Test batches: {len(test_loader)}")
     
     # Inspect a batch
-    batch_sequences, batch_labels = next(iter(train_loader))
+   batch_sequences, batch_labels = next(iter(train_loader))
     print(f"\nBatch sequence shape: {batch_sequences.shape}")
     print(f"Batch labels shape: {batch_labels.shape}")
     

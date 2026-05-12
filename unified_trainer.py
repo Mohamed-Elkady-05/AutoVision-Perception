@@ -44,6 +44,8 @@ from sklearn.metrics import (
 
 from base_sequential_models import BaseSequentialModel
 from config import TrainingConfig
+from results_visualization import save_metrics_json as save_metrics_json_util
+from results_visualization import save_training_curves as save_training_curves_util
 
 
 class UnifiedTrainer:
@@ -318,6 +320,9 @@ class UnifiedTrainer:
                 preds = logits.argmax(dim=1)
                 all_preds.extend(preds.cpu().numpy())
                 all_targets.extend(labels.cpu().numpy())
+
+            self.last_eval_targets = list(all_targets)
+            self.last_eval_preds = list(all_preds)
         
         # Compute metrics
         accuracy = accuracy_score(all_targets, all_preds)
@@ -361,53 +366,12 @@ class UnifiedTrainer:
     
     def save_training_curves(self, output_dir: str = "results"):
         """Save training curves to file."""
-        output_dir = Path(output_dir)
-        output_dir.mkdir(parents=True, exist_ok=True)
-        
-        fig, axes = plt.subplots(1, 2, figsize=(12, 4))
-        
-        # Loss curve
-        axes[0].plot(self.history["train_loss"], label="Train")
-        axes[0].plot(self.history["val_loss"], label="Val")
-        axes[0].set_xlabel("Epoch")
-        axes[0].set_ylabel("Loss")
-        axes[0].set_title(f"{self.model.get_model_name()} - Loss")
-        axes[0].legend()
-        axes[0].grid(True)
-        
-        # Accuracy curve
-        axes[1].plot(self.history["train_acc"], label="Train")
-        axes[1].plot(self.history["val_acc"], label="Val")
-        axes[1].set_xlabel("Epoch")
-        axes[1].set_ylabel("Accuracy")
-        axes[1].set_title(f"{self.model.get_model_name()} - Accuracy")
-        axes[1].legend()
-        axes[1].grid(True)
-        
-        filename = output_dir / f"{self.model.get_model_name()}_training_curves.png"
-        plt.tight_layout()
-        plt.savefig(filename, dpi=100)
-        plt.close()
-        
+        filename = save_training_curves_util(self.history, self.model.get_model_name(), output_dir)
         print(f"[Trainer] Saved training curves: {filename}")
     
     def save_metrics_json(self, metrics: Dict, output_dir: str = "results"):
         """Save evaluation metrics to JSON."""
-        output_dir = Path(output_dir)
-        output_dir.mkdir(parents=True, exist_ok=True)
-        
-        # Convert numpy arrays to lists for JSON serialization
-        metrics_serializable = {}
-        for key, value in metrics.items():
-            if hasattr(value, 'tolist'):
-                metrics_serializable[key] = value.tolist()
-            else:
-                metrics_serializable[key] = float(value) if isinstance(value, np.floating) else value
-        
-        filename = output_dir / f"{self.model.get_model_name()}_metrics.json"
-        with open(filename, 'w') as f:
-            json.dump(metrics_serializable, f, indent=2)
-        
+        filename = save_metrics_json_util(metrics, self.model.get_model_name(), output_dir)
         print(f"[Trainer] Saved metrics: {filename}")
 
 

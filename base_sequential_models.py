@@ -11,6 +11,7 @@ Design Philosophy:
 
 from abc import ABC, abstractmethod
 from typing import Tuple, Optional, Dict, Any
+import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -249,6 +250,46 @@ class GRUModel(BaseSequentialModel):
         }
 
 
+class AdditiveAttention(nn.Module):
+    """Lightweight additive attention for sequence pooling."""
+
+    def __init__(self, hidden_size: int):
+        super().__init__()
+        self.score = nn.Sequential(
+            nn.Linear(hidden_size, hidden_size),
+            nn.Tanh(),
+            nn.Linear(hidden_size, 1),
+        )
+
+    def forward(self, sequence_outputs: Tensor) -> Tuple[Tensor, Tensor]:
+        # sequence_outputs: (batch, seq_len, hidden)
+        weights = torch.softmax(self.score(sequence_outputs), dim=1)
+        context = torch.sum(weights * sequence_outputs, dim=1)
+        return context, weights
+
+
+class SinusoidalPositionalEncoding(nn.Module):
+    """Standard sinusoidal positional encoding for temporal transformers."""
+
+    def __init__(self, d_model: int, max_len: int = 512, dropout: float = 0.1):
+        super().__init__()
+        self.dropout = nn.Dropout(dropout)
+
+        position = torch.arange(0, max_len, dtype=torch.float32).unsqueeze(1)
+        div_term = torch.exp(
+            torch.arange(0, d_model, 2, dtype=torch.float32) * (-math.log(10000.0) / d_model)
+        )
+        pe = torch.zeros(max_len, d_model, dtype=torch.float32)
+        pe[:, 0::2] = torch.sin(position * div_term)
+        pe[:, 1::2] = torch.cos(position * div_term)
+        self.register_buffer("pe", pe.unsqueeze(0), persistent=False)
+
+    def forward(self, x: Tensor) -> Tensor:
+        seq_len = x.size(1)
+        x = x + self.pe[:, :seq_len]
+        return self.dropout(x)
+
+
 # Placeholder classes for students to implement
 # These will be implemented by Team Members 2 and 3
 
@@ -260,18 +301,57 @@ class LSTMModel(BaseSequentialModel):
     Should include attention mechanism for better interpretability.
     """
     
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        raise NotImplementedError("LSTMModel to be implemented by Student 2")
+    def __init__(
+        self,
+        input_size: int = 512,
+        hidden_size: int = 256,
+        num_layers: int = 2,
+        output_size: int = 43,
+        dropout: float = 0.3,
+        bidirectional: bool = True,
+        device: str = "cuda",
+    ):
+        super().__init__(input_size, hidden_size, num_layers, output_size, dropout, device)
+
+        self.bidirectional = bidirectional
+
+        self.lstm = nn.LSTM(
+            input_size=input_size,
+            hidden_size=hidden_size,
+            num_layers=num_layers,
+            batch_first=True,
+            dropout=dropout if num_layers > 1 else 0,
+            bidirectional=bidirectional,
+        )
+
+        lstm_output_size = hidden_size * (2 if bidirectional else 1)
+        self.attention = AdditiveAttention(lstm_output_size)
+        self.fc1 = nn.Linear(lstm_output_size, hidden_size)
+        self.dropout_layer = nn.Dropout(dropout)
+        self.fc2 = nn.Linear(hidden_size, output_size)
     
     def forward(self, x: Tensor) -> Tensor:
-        raise NotImplementedError("LSTMModel to be implemented by Student 2")
+        lstm_out, _ = self.lstm(x)
+        context, _ = self.attention(lstm_out)
+        hidden = F.relu(self.fc1(context))
+        hidden = self.dropout_layer(hidden)
+        logits = self.fc2(hidden)
+        return logits
     
     def get_model_name(self) -> str:
-        raise NotImplementedError("LSTMModel to be implemented by Student 2")
+        return "LSTM"
     
     def get_config_dict(self) -> Dict[str, Any]:
-        raise NotImplementedError("LSTMModel to be implemented by Student 2")
+        return {
+            "model": "LSTM",
+            "input_size": self.input_size,
+            "hidden_size": self.hidden_size,
+            "num_layers": self.num_layers,
+            "output_size": self.output_size,
+            "dropout": self.dropout,
+            "bidirectional": self.bidirectional,
+            "num_parameters": self.get_num_parameters(),
+        }
 
 
 class TransformerModel(BaseSequentialModel):
@@ -282,18 +362,72 @@ class TransformerModel(BaseSequentialModel):
     Should include multi-head self-attention and optional Vision Transformer.
     """
     
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        raise NotImplementedError("TransformerModel to be implemented by Student 3")
+    def __init__(
+        self,
+        input_size: int = 512,
+        hidden_size: int = 256,
+        num_layers: int = 2,
+        output_size: int = 43,
+        dropout: float = 0.3,
+        bidirectional: bool = True,
+        device: str = "cuda",
+        attention_heads: int = 8,
+        ffn_dim: int = 1024,
+        max_seq_len: int = 512,
+    ):
+        super().__init__(input_size, hidden_size, num_layers, output_size, dropout, device)
+
+        self.bidirectional = bidirectional
+        self.attention_heads = attention_heads
+        self.ffn_dim = ffn_dim
+        self.max_seq_len = max_seq_len
+
+        self.input_projection = nn.Linear(input_size, hidden_size)
+        self.positional_encoding = SinusoidalPositionalEncoding(hidden_size, max_len=max_seq_len, dropout=dropout)
+
+        encoder_layer = nn.TransformerEncoderLayer(
+            d_model=hidden_size,
+            nhead=attention_heads,
+            dim_feedforward=ffn_dim,
+            dropout=dropout,
+            batch_first=True,
+            activation="gelu",
+        )
+        self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
+
+        self.fc1 = nn.Linear(hidden_size, hidden_size)
+        self.dropout_layer = nn.Dropout(dropout)
+        self.fc2 = nn.Linear(hidden_size, output_size)
     
     def forward(self, x: Tensor) -> Tensor:
-        raise NotImplementedError("TransformerModel to be implemented by Student 3")
+        if x.size(1) > self.max_seq_len:
+            raise ValueError(f"Sequence length {x.size(1)} exceeds max_seq_len={self.max_seq_len}")
+
+        x = self.input_projection(x)
+        x = self.positional_encoding(x)
+        x = self.transformer(x)
+        pooled = x.mean(dim=1)
+        hidden = F.relu(self.fc1(pooled))
+        hidden = self.dropout_layer(hidden)
+        logits = self.fc2(hidden)
+        return logits
     
     def get_model_name(self) -> str:
-        raise NotImplementedError("TransformerModel to be implemented by Student 3")
+        return "Transformer"
     
     def get_config_dict(self) -> Dict[str, Any]:
-        raise NotImplementedError("TransformerModel to be implemented by Student 3")
+        return {
+            "model": "Transformer",
+            "input_size": self.input_size,
+            "hidden_size": self.hidden_size,
+            "num_layers": self.num_layers,
+            "output_size": self.output_size,
+            "dropout": self.dropout,
+            "attention_heads": self.attention_heads,
+            "ffn_dim": self.ffn_dim,
+            "max_seq_len": self.max_seq_len,
+            "num_parameters": self.get_num_parameters(),
+        }
 
 
 # ============================================================================
