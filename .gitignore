@@ -1,17 +1,24 @@
-# Generated datasets and extracted archives
+.qodo
+.vscode
+.idea
+*.log
+*.tmp
+*.bak
+node_modules
+dist
+build
+coverage
+.DS_Store
+.env
+.env.local
+.env.development
+.env.test
+_pycache__
+*.pyc
 archive/
 archive.zip
 data/
 cache/
-checkpoints/
-results/
-
-# Python bytecode
-__pycache__/
-*.pyc
-
-# Local run logs and command outputs
-*_output*.txt
-*_smoke_output.txt
-preprocess*_output.txt
-test_output.txt
+reports/temp_output.txt
+reports/*.txt
+archive/
