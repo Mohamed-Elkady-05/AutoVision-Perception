@@ -22,3 +22,4 @@ cache/
 reports/temp_output.txt
 reports/*.txt
 archive/
+train/

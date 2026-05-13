@@ -8,11 +8,11 @@ from pathlib import Path
 
 from src.config import TrainingConfig
 from src.detection.sequence_dataset import create_sequence_dataloaders
-from src.models.base_sequential_models import GRU_Model, RNN_Model, LSTMModel
+from src.models.base_sequential_models import GRUModel, RNNModel, LSTMModel, TransformerModel
 from src.models.unified_trainer import UnifiedTrainer
 
 
-FEATURES_DIR   = "/content/drive/MyDrive/gtsrb_cache/npy"
+FEATURES_DIR   = "./cache/vgg16_sequence_features"
 RESULTS_DIR    = "./results"
 CHECKPOINT_DIR = "./checkpoints"
 BATCH_SIZE     = 32
@@ -67,7 +67,7 @@ def build_model(
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     if model_type.lower() == "gru":
-        model = GRU_Model(
+        model = GRUModel(
             input_size    = 512,
             hidden_size   = hidden_size,
             num_layers    = num_layers,
@@ -77,7 +77,7 @@ def build_model(
             device        = device,
         )
     elif model_type.lower() == "rnn":
-        model = RNN_Model(
+        model = RNNModel(
             input_size    = 512,
             hidden_size   = hidden_size,
             num_layers    = num_layers,
@@ -94,6 +94,12 @@ def build_model(
             output_size   = 43,
             dropout       = dropout,
             bidirectional = bidirectional,
+            device        = device,
+        )
+    elif model_type.lower() == "transformer":
+        model = TransformerModel(
+            input_size    = 512,
+            output_size   = 43,
             device        = device,
         )
     else:
@@ -156,3 +162,95 @@ def evaluate_model(
     print(f"\nResults saved to: {results_dir}/")
 
     return metrics
+
+
+def main():
+    """Train all 4 models (RNN, GRU, LSTM, Transformer) sequentially."""
+    import json
+    from sklearn.metrics import confusion_matrix
+    import matplotlib.pyplot as plt
+    
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    
+    print("=" * 80)
+    print("ModelsP3 FINAL TRAINING EXPERIMENT")
+    print("=" * 80)
+    print(f"Device: {device}")
+    
+    # Load data once (reuse across all models)
+    print("\n[Loading data...]")
+    train_loader, val_loader, test_loader = load_data(
+        features_dir=FEATURES_DIR,
+        batch_size=BATCH_SIZE,
+        num_workers=NUM_WORKERS,
+    )
+    
+    model_types = ["rnn", "gru", "lstm", "transformer"]
+    results_summary = {}
+    
+    for model_type in model_types:
+        print("\n" + "=" * 80)
+        print(f"TRAINING {model_type.upper()}")
+        print("=" * 80)
+        
+        # Build model
+        model = build_model(model_type=model_type)
+        
+        # Train model
+        trainer = train_model(
+            model=model,
+            train_loader=train_loader,
+            val_loader=val_loader,
+            num_epochs=NUM_EPOCHS,
+            checkpoint_dir=f"{CHECKPOINT_DIR}/{model_type}",
+        )
+        
+        # Evaluate model
+        metrics = evaluate_model(
+            trainer=trainer,
+            test_loader=test_loader,
+            results_dir=RESULTS_DIR,
+        )
+        
+        # Save confusion matrix PNG
+        if trainer.last_eval_targets and trainer.last_eval_preds:
+            cm = confusion_matrix(trainer.last_eval_targets, trainer.last_eval_preds)
+            fig, ax = plt.subplots(figsize=(10, 8))
+            im = ax.imshow(cm, cmap="Blues")
+            fig.colorbar(im, ax=ax)
+            ax.set_title(f"{model_type.upper()} Confusion Matrix")
+            ax.set_xlabel("Predicted")
+            ax.set_ylabel("True")
+            output_path = Path(RESULTS_DIR) / f"{model_type.upper()}_confusion_matrix.png"
+            fig.tight_layout()
+            fig.savefig(output_path, dpi=180, bbox_inches="tight")
+            plt.close(fig)
+            print(f"Saved confusion matrix: {output_path}")
+        
+        # Store results for summary
+        results_summary[model_type.upper()] = {
+            "accuracy": metrics.get("accuracy"),
+            "precision": metrics.get("precision"),
+            "recall": metrics.get("recall"),
+            "f1": metrics.get("f1"),
+            "loss": metrics.get("loss"),
+        }
+    
+    # Print final summary
+    print("\n" + "=" * 80)
+    print("FINAL RESULTS SUMMARY")
+    print("=" * 80)
+    for model_name, model_metrics in results_summary.items():
+        print(f"\n{model_name}:")
+        for metric_name, metric_value in model_metrics.items():
+            print(f"  {metric_name}: {metric_value:.4f}")
+    
+    # Save summary to JSON
+    summary_path = Path(RESULTS_DIR) / "training_summary.json"
+    with open(summary_path, "w") as f:
+        json.dump(results_summary, f, indent=2)
+    print(f"\nSummary saved to: {summary_path}")
+
+
+if __name__ == "__main__":
+    main()

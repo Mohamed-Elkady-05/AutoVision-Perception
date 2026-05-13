@@ -213,11 +213,46 @@ python -m src.preprocessing.gtsrb_sequence_preprocessing
 python -m src.models.rnn_training_smoke
 ```
 
+#### Train the GRU model
+
+```bash
+python -m src.models.gru_training_smoke
+```
+
+#### Train the LSTM model
+
+```bash
+python -m src.models.lstm_training_smoke
+```
+
+#### Train the Transformer model
+
+```bash
+python -m src.models.transformer_training_smoke
+```
+
 #### Visualize saved sequence frames with RNN predictions
 
 ```bash
 python -m src.utils.visualize_rnn_sequences
 ```
+
+#### Launch the Hugging Face Space app locally
+
+```bash
+python app.py
+```
+
+The app accepts either a cached sequence `.npz` file or a single image fallback. It returns the predicted class, confidence, and a saved explanation plot.
+
+#### Explainability outputs
+
+Each training run now saves a matching XAI artifact in `results/`, for example:
+
+- `results/RNN_xai.png`
+- `results/GRU_xai.png`
+- `results/LSTM_xai.png`
+- `results/Transformer_xai.png`
 
 #### Train a Model
 

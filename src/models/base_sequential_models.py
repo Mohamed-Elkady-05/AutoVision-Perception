@@ -244,19 +244,19 @@ class LSTMModel(BaseSequentialModel):
 
 
 class TransformerModel(BaseSequentialModel):
-    """Transformer encoder model for sequence classification."""
+    """Transformer encoder model for sequence classification - optimized for CPU."""
 
     def __init__(
         self,
         input_size: int = 512,
-        hidden_size: int = 256,
-        num_layers: int = 2,
+        hidden_size: int = 128,  # Reduced from 256
+        num_layers: int = 1,  # Reduced from 2
         output_size: int = 43,
-        dropout: float = 0.3,
+        dropout: float = 0.2,  # Reduced from 0.3
         bidirectional: bool = True,
         device: str = "cuda",
-        attention_heads: int = 8,
-        ffn_dim: int = 1024,
+        attention_heads: int = 4,  # Reduced from 8
+        ffn_dim: int = 256,  # Reduced from 1024
         max_seq_len: int = 512,
     ):
         super().__init__(input_size, hidden_size, num_layers, output_size, dropout, device)
@@ -273,7 +273,7 @@ class TransformerModel(BaseSequentialModel):
             dim_feedforward=ffn_dim,
             dropout=dropout,
             batch_first=True,
-            activation="gelu",
+            activation="relu",  # Changed from gelu to relu for faster computation
         )
         self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
 
