@@ -414,6 +414,211 @@ model_config.num_layers = 2
 model_config.dropout = 0.3
 ```
 
+## Data Augmentation
+
+Data augmentation is applied **only during training** to improve model robustness and prevent overfitting. Augmentation is implemented in `src/detection/sequence_dataset.py` and operates on temporal sequences of features.
+
+### Augmentation Techniques
+
+1. **Temporal Frame Reversal** (30% probability)
+   - Reverses the order of frames within each sequence
+   - Exposes the model to backward temporal patterns
+   - Regularizes the model to capture bidirectional dependencies
+   - Implementation: `sequence = sequence[::-1]`
+
+2. **Gaussian Noise Injection** (20% probability)
+   - Adds small random Gaussian noise to feature values
+   - Noise scale: `std_dev = 0.05` of feature magnitude
+   - Improves robustness to minor feature perturbations
+   - Implementation: `sequence += np.random.randn(*sequence.shape) * 0.05`
+
+### Configuration
+
+Augmentation settings are controlled in `src/config.py`:
+
+```python
+# Enable/disable augmentation per split
+dataset_config.augment_train = True    # Apply to training split
+dataset_config.augment_val = False     # No augmentation on validation
+dataset_config.augment_test = False    # No augmentation on test
+
+# Augmentation probabilities (in sequence_dataset.py)
+TEMPORAL_FLIP_PROB = 0.3
+NOISE_INJECTION_PROB = 0.2
+NOISE_SCALE = 0.05
+```
+
+### Benefits
+
+- **Temporal Regularization**: Prevents the model from learning overly-specific frame orderings
+- **Feature Robustness**: Noise injection simulates feature extraction variance
+- **Reduced Overfitting**: Increases effective training data diversity
+- **No Information Loss**: Both augmentations are mathematically invertible
+
+---
+
+## Data Processing Pipeline
+
+This section describes the complete workflow from downloading the GTSRB dataset from Kaggle to training on cached features.
+
+### Step 1: Download from Kaggle
+
+Visit [GTSRB Dataset on Kaggle](https://www.kaggle.com/datasets/meowmeowmeowmeowmeow/gtsrb-german-traffic-sign) and download the dataset.
+
+**Expected structure after extraction:**
+```
+archive/
+├── Train/
+│   ├── 0/
+│   │   ├── 00000.ppm
+│   │   ├── 00001.ppm
+│   │   └── ...
+│   ├── 1/
+│   │   ├── 00000.ppm
+│   │   └── ...
+│   └── ... (42 total classes)
+└── Test/
+    └── (optional, not used in Phase 3)
+```
+
+The dataset contains **43 traffic sign classes** (0-42) with images in `.ppm` format.
+
+### Step 2: Create Pseudo-Sequences from Archive
+
+The preprocessing pipeline (`src/preprocessing/gtsrb_sequence_preprocessing.py`) treats the GTSRB archive as an **ordered image corpus** rather than a native video dataset.
+
+**Process:**
+1. Read all images from each class folder: `archive/Train/<class_id>/`
+2. Sort images alphabetically within each class
+3. Create overlapping temporal windows using a **sliding window**:
+   - **Window size (sequence length)**: 10 frames
+   - **Stride**: 2 frames (produces overlapping sequences)
+   - Creates pseudo-video sequences from static images
+4. Save each sequence as a `.npz` file with metadata
+
+**Example:**
+```
+Class 0 images: [00000.ppm, 00001.ppm, 00002.ppm, ..., 00500.ppm]
+
+Sequences created (with stride=2):
+- Seq 0: frames [00000-00009]
+- Seq 1: frames [00002-00011]
+- Seq 2: frames [00004-00013]
+- ... (continues every 2 frames)
+```
+
+**Output:** `data/preprocessed_sequences/{split}/{class}/*.npz`
+- Each `.npz` contains:
+  - `frames`: stacked image array shape (10, H, W, 3)
+  - `metadata`: JSON with sequence ID, start frame, class label, timestamps
+
+### Step 3: Precompute VGG16 Features
+
+Feature extraction is performed once and cached to avoid recomputation (`SequenceFeaturePrecomputer` in `gtsrb_sequence_preprocessing.py`).
+
+**Process:**
+1. Load each sequence's 10 frames from `.npz`
+2. Extract features using **pretrained VGG16** (before classification layer)
+3. Output: **512-dimensional feature vectors** per frame
+4. Cache features as compressed `.npz` files
+
+**Output:** `cache/vgg16_sequence_features/{split}/{class}/*.npz`
+- Each cached file contains:
+  - `features`: shape (10, 512) - sequence of feature vectors
+  - `metadata`: preserved from preprocessing step
+
+**Why VGG16?**
+- Pretrained on ImageNet: captures universal image patterns
+- 512-dimensional output: rich representation, computationally efficient
+- Proven performance on traffic sign recognition tasks
+- Transfer learning reduces need for large training data
+
+### Step 4: Generate Leakage-Safe Train/Val/Test Splits
+
+The `regenerate_grouped_feature_splits()` function creates **non-overlapping, leakage-free splits**:
+
+**Leakage Prevention Strategy:**
+1. **Filter Non-Overlapping Windows**
+   - Keep only sequences where `start_frame % sequence_length == 0`
+   - Ensures no frame appears in multiple sequences across splits
+   
+2. **Group by Source Segment**
+   - Related sequences from the same image block stay together
+   - `group_key = f"{source}::segment_{start_frame // (seq_len * group_size)}"`
+   
+3. **Stratified Split by Group**
+   - Split at the **group level**, not individual sequence level
+   - Prevents frames from one group appearing in both train and test
+
+**Result:**
+- **Train**: 2,654 sequences (70%)
+- **Validation**: 529 sequences (15%)
+- **Test**: 737 sequences (15%)
+- **Total**: 3,920 non-overlapping sequences across 43 classes
+
+### Step 5: Load and Train on Cached Features
+
+The `SequenceDataset` loads cached features efficiently:
+
+```python
+from src.detection.sequence_dataset import create_sequence_dataloaders
+
+# Automatically detects train/val/test split folders
+train_loader, val_loader, test_loader = create_sequence_dataloaders(
+    features_dir="./cache/vgg16_sequence_features",
+    batch_size=32,
+    augment=True  # Enables augmentation for training split
+)
+```
+
+**Data Flow:**
+```
+cache/vgg16_sequence_features/
+├── train/ → SequenceDataset (apply augmentation)
+│           → DataLoader (shuffled batches)
+├── val/   → SequenceDataset (no augmentation)
+│           → DataLoader (ordered batches)
+└── test/  → SequenceDataset (no augmentation)
+            → DataLoader (ordered batches)
+```
+
+### Complete Pipeline Command
+
+To run the entire preprocessing and feature caching pipeline:
+
+```bash
+python -c "
+from src.preprocessing.gtsrb_sequence_preprocessing import (
+    SequencePreprocessor,
+    SequenceFeaturePrecomputer,
+    regenerate_grouped_feature_splits
+)
+from pathlib import Path
+
+# Step 1: Create pseudo-sequences from archive
+preprocessor = SequencePreprocessor()
+for split in ['train', 'val', 'test']:
+    preprocessor.preprocess_all(split=split)
+
+# Step 2: Precompute VGG16 features
+precomputer = SequenceFeaturePrecomputer(device='cuda')
+precomputer.precompute_all_splits(splits=['train', 'val', 'test'])
+
+# Step 3: Generate leakage-safe splits
+regenerate_grouped_feature_splits()
+
+print('✓ Data processing complete!')
+print('✓ Cached features ready in: cache/vgg16_sequence_features/')
+"
+```
+
+Or run directly:
+```bash
+python -m src.preprocessing.gtsrb_sequence_preprocessing
+```
+
+---
+
 ## Running Experiments
 
 ### Run Complete Pipeline
