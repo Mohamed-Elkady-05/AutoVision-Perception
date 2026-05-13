@@ -8,7 +8,7 @@ from pathlib import Path
 
 from src.config import TrainingConfig
 from src.detection.sequence_dataset import create_sequence_dataloaders
-from src.models.base_sequential_models import GRU_Model, RNN_Model
+from src.models.base_sequential_models import GRU_Model, RNN_Model, LSTMModel
 from src.models.unified_trainer import UnifiedTrainer
 
 
@@ -78,6 +78,16 @@ def build_model(
         )
     elif model_type.lower() == "rnn":
         model = RNN_Model(
+            input_size    = 512,
+            hidden_size   = hidden_size,
+            num_layers    = num_layers,
+            output_size   = 43,
+            dropout       = dropout,
+            bidirectional = bidirectional,
+            device        = device,
+        )
+    elif model_type.lower() == "lstm":
+        model = LSTMModel(
             input_size    = 512,
             hidden_size   = hidden_size,
             num_layers    = num_layers,
