@@ -20,7 +20,6 @@ NUM_WORKERS    = 0
 NUM_EPOCHS     = 30
 
 
-# Wrapper that casts sequences to float32 without breaking len()
 class Float32Loader:
     def __init__(self, loader):
         self.loader = loader

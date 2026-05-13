@@ -77,9 +77,15 @@ class SequenceDataset(Dataset):
         # Load features and metadata
         self.sequences, self.labels = self._load_and_organize_sequences()
         
-        # Split into train/val/test
-        self._split_dataset(split_ratios)
-        
+        # If the provided features_path is an explicit split folder (train/val/test),
+        # do not further split; otherwise, perform stratified splitting.
+        if self.features_path.name.lower() in {"train", "val", "test"}:
+            # Already split at folder-level; keep as-is
+            pass
+        else:
+            # Split into train/val/test
+            self._split_dataset(split_ratios)
+
         print(f"[SequenceDataset] Loaded {len(self.sequences)} sequences for split='{split}'")
     
     def _load_and_organize_sequences(self) -> Tuple[List[np.ndarray], List[int]]:
@@ -98,8 +104,8 @@ class SequenceDataset(Dataset):
         sequences = []
         labels = []
         
-        # Load cached features
-        feature_files = sorted(self.features_path.glob("*.npy"))
+        # Load cached features (support nested class folders and both .npy/.npz formats)
+        feature_files = sorted(self.features_path.rglob("*.npy")) + sorted(self.features_path.rglob("*.npz"))
         
         if not feature_files:
             # Fallback: generate synthetic sequences for testing
@@ -112,18 +118,50 @@ class SequenceDataset(Dataset):
         
         for feature_file in feature_files:
             try:
-                features = np.load(feature_file)  # shape: (num_samples, feature_dim)
-                # Extract label from filename (e.g., "class_5_features.npy" → 5)
-                label = int(feature_file.stem.split("_")[1])
-                
-                # Create multiple sequences from this class
-                for start_idx in range(len(features) - self.sequence_length + 1):
-                    sequence = features[start_idx:start_idx + self.sequence_length]
-                    sequences.append(sequence)
-                    labels.append(label)
-                
-                all_features.append(features)
-                all_labels.extend([label] * len(features))
+                data = np.load(feature_file, allow_pickle=True)
+
+                # Handle .npz archives vs plain .npy arrays
+                if isinstance(data, np.lib.npyio.NpzFile):
+                    # Prefer a key named 'features' if present
+                    if 'features' in data.files:
+                        features = data['features']
+                    else:
+                        # Fall back to the first array inside the archive
+                        first_key = data.files[0]
+                        features = data[first_key]
+                else:
+                    features = data
+
+                # Ensure numpy array
+                features = np.asarray(features)
+
+                # Extract label from filename (e.g., "class_00_000100_features.npz" → 0)
+                parts = feature_file.stem.split("_")
+                if len(parts) >= 2 and parts[1].isdigit():
+                    label = int(parts[1])
+                else:
+                    # Fallback: try last numeric part
+                    nums = [p for p in parts if p.isdigit()]
+                    label = int(nums[0]) if nums else 0
+
+                # Create multiple sequences from this class (sliding window)
+                if len(features) >= self.sequence_length:
+                    for start_idx in range(len(features) - self.sequence_length + 1):
+                        sequence = features[start_idx:start_idx + self.sequence_length]
+                        sequences.append(sequence)
+                        labels.append(label)
+
+                    all_features.append(features)
+                    all_labels.extend([label] * len(features))
+                else:
+                    # If the file contains a single sequence, accept it
+                    if features.ndim == 2 and features.shape[0] == self.sequence_length:
+                        sequences.append(features)
+                        labels.append(label)
+                        all_features.append(features)
+                        all_labels.extend([label] * features.shape[0])
+                    else:
+                        print(f"[SequenceDataset] Warning: {feature_file} has insufficient frames ({features.shape})")
                 
             except Exception as e:
                 print(f"[SequenceDataset] Warning: Could not load {feature_file}: {e}")
@@ -279,9 +317,14 @@ def create_sequence_dataloaders(
 ) -> Tuple[DataLoader, DataLoader, DataLoader]:
     """
     Create train/val/test DataLoaders for sequence datasets.
+
+    This helper is flexible: if `features_dir` contains explicit `train/`, `val/`,
+    and `test/` subfolders (as created by the preprocessing step), those
+    subfolders will be used. Otherwise, the provided directory is used for all
+    splits (legacy behavior).
     
     Args:
-        features_dir: Path to precomputed features directory
+        features_dir: Path to precomputed features directory (or parent of split dirs)
         sequence_length: Frames per sequence
         batch_size: Batch size for DataLoader
         num_workers: Number of worker threads
@@ -291,30 +334,40 @@ def create_sequence_dataloaders(
     Returns:
         (train_loader, val_loader, test_loader)
     """
+    base_dir = Path(features_dir)
+
+    # If explicit split subfolders exist, use them
+    if (base_dir / "train").exists() and (base_dir / "val").exists() and (base_dir / "test").exists():
+        train_path = base_dir / "train"
+        val_path = base_dir / "val"
+        test_path = base_dir / "test"
+    else:
+        train_path = val_path = test_path = base_dir
+
     train_dataset = SequenceDataset(
-        features_path=features_dir,
+        features_path=str(train_path),
         sequence_length=sequence_length,
         split="train",
         random_seed=seed,
         augment_sequences=augment,
     )
-    
+
     val_dataset = SequenceDataset(
-        features_path=features_dir,
+        features_path=str(val_path),
         sequence_length=sequence_length,
         split="val",
         random_seed=seed,
         augment_sequences=False,
     )
-    
+
     test_dataset = SequenceDataset(
-        features_path=features_dir,
+        features_path=str(test_path),
         sequence_length=sequence_length,
         split="test",
         random_seed=seed,
         augment_sequences=False,
     )
-    
+
     train_loader = DataLoader(
         train_dataset,
         batch_size=batch_size,
@@ -322,21 +375,21 @@ def create_sequence_dataloaders(
         num_workers=num_workers,
         drop_last=True,
     )
-    
+
     val_loader = DataLoader(
         val_dataset,
         batch_size=batch_size,
         shuffle=False,
         num_workers=num_workers,
     )
-    
+
     test_loader = DataLoader(
         test_dataset,
         batch_size=batch_size,
         shuffle=False,
         num_workers=num_workers,
     )
-    
+
     return train_loader, val_loader, test_loader
 
 

@@ -25,6 +25,9 @@ Usage:
 """
 
 import os
+# Disable Torch Dynamo / compile in environments where it causes long imports
+os.environ.setdefault("TORCH_COMPILE_DISABLE", "1")
+
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 import json
