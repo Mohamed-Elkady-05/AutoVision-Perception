@@ -1,728 +1,497 @@
-# AutoVision-Perception: Phase 3 Sequential & Transformer Models
+# AutoVision-Perception
 
-A comprehensive machine learning framework for traffic sign recognition using sequential and transformer-based deep learning models. This project implements temporal modeling pipelines with precomputed CNN features, advanced sequence architectures (RNN, GRU, LSTM, Transformer), and unified training infrastructure.
+[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![PyTorch](https://img.shields.io/badge/PyTorch-1.9+-ee4c2c.svg)](https://pytorch.org/)
+
+A comprehensive, three-phase machine learning framework for traffic sign recognition, evolving from classical machine learning to advanced sequential and transformer-based deep learning models. This project implements a complete pipeline for the German Traffic Sign Recognition Benchmark (GTSRB), including temporal modeling, feature caching, and unified training infrastructure.
+
+---
 
 ## Table of Contents
 
 - [Project Overview](#project-overview)
+- [Key Features](#key-features)
+- [Deployment](#Deployment)
 - [Architecture](#architecture)
-- [Prerequisites](#prerequisites)
-- [Installation](#installation)
-- [Project Structure](#project-structure)
 - [Quick Start](#quick-start)
-- [Core Components](#core-components)
+- [Project Structure](#project-structure)
+- [Phase 1: Classical Machine Learning](#phase-1-classical-machine-learning)
+- [Phase 2: Deep Learning - CNNs](#phase-2-deep-learning---cnns)
+- [Phase 3: Sequential & Transformer Models](#phase-3-sequential--transformer-models)
 - [Configuration](#configuration)
-- [Running Experiments](#running-experiments)
 - [Results & Evaluation](#results--evaluation)
+- [References](#references)
+---
 
 ## Project Overview
 
-**AutoVision-Perception** extends the AutoVision project with Phase 3 implementation, introducing temporal modeling for improved traffic sign recognition. The framework now supports real pseudo-sequences built from the extracted GTSRB archive, cached VGG16 sequence features, RNN training on the real cache, and visual inspection of saved sequence frames.
+**AutoVision-Perception** is a graduated project that systematically explores and implements solutions for traffic sign recognition. The journey begins with fundamental machine learning techniques using hand-crafted features and culminates in state-of-the-art sequential models (RNN, GRU, LSTM, Transformer) that leverage temporal context for improved classification.
+### Project Evolution
 
-**Key Features:**
-- Efficient feature extraction and caching with VGG16
-- Temporal sequence generation (10-frame sequences)
-- Real-data pseudo-sequence generation from sorted class folders
-- Multiple sequential architectures (RNN, GRU, LSTM, Transformer)
-- Unified training pipeline with advanced optimization
-- Comprehensive evaluation metrics and visualization
-- GPU-accelerated training with PyTorch
+| Phase | Focus | Key Techniques |
+| :--- | :--- | :--- |
+| **Phase 1** | Classical Machine Learning | HOG (Histogram of Oriented Gradients), Color Histograms, PCA, KNN, Naive Bayes, Random Forest, AdaBoost, Gradient Boosting, Ensemble Methods |
+| **Phase 2** | Deep Learning - CNNs | Custom CNN Architectures, Transfer Learning (VGG16), Feature Visualization |
+| **Phase 3** | Sequential & Transformer Models | Temporal Sequence Modeling, RNN/GRU/LSTM, Transformer Networks, Feature Caching, Attention Mechanisms |
 
-## Architecture
+---
 
-```
-AUTOVISION PIPELINE - PHASE 3
-├─ Feature Extraction (VGG16)
-│  └─ 512-dimensional feature vectors
-├─ Sequence Generation (10-frame temporal)
-│  └─ (batch, seq_len=10, 512) tensors
-├─ Sequential Models
-│  ├─ RNN - Vanilla Recurrent Neural Network
-│  ├─ GRU - Gated Recurrent Unit
-│  ├─ LSTM - Long Short-Term Memory + Attention
-│  └─ Transformer - Multi-head Transformer Architecture
-├─ Unified Training
-│  └─ Single training loop for all models
-├─ Evaluation & Comparison
-│  └─ Metrics, visualizations, statistical analysis
-└─ Extensions
-   ├─ Real-time inference
-   ├─ Adversarial robustness testing
-   ├─ Anomaly detection
-   └─ Interpretability analysis
-```
+## Key Features
 
-## Real Sequence Workflow
+### Across All Phases
+- **Complete GTSRB Pipeline**: From raw images to final evaluation
+- **Modular Codebase**: Reusable components for feature extraction, training, and evaluation
+- **Comprehensive Visualization**: Training curves, confusion matrices, feature maps, and sequence predictions
+- **Hyperparameter Optimization**: Grid search for optimal model configuration
 
-The preprocessing pipeline treats GTSRB as an ordered image corpus rather than a native video dataset.
+### Phase 1 Specifics
+- **Feature Engineering**: HOG descriptors + color histograms (420-dimensional features)
+- **Dimensionality Reduction**: PCA for variance-based feature selection
+- **Multiple Classifiers**: KNN, Naive Bayes, Random Forest, AdaBoost, Gradient Boosting
+- **Ensemble Learning**: Voting ensemble combining Random Forest, AdaBoost, and Gradient Boosting
 
-1. Read images from `archive/Train/<class>/`.
-2. Sort images inside each class folder.
-3. Slice windows of length 10 with stride 2.
-4. Save each window as a `.npz` file with `frames` and JSON metadata.
-5. Precompute VGG16 features for each saved sequence and cache them under `cache/vgg16_sequence_features/`.
+### Phase 2 Specifics
+- **Custom CNN**: 3 convolutional blocks with max pooling, dropout regularization
+- **Transfer Learning**: VGG16 feature extraction and fine-tuning
+- **Feature Visualization**: Intermediate activation maps and filter visualizations
 
-The metadata preserves the class label, frame indices, timestamps, and folder name so each saved sequence can be traced back to the exact image block it came from.
+### Phase 3 Specifics
+- **Efficient Feature Caching**: Precomputed VGG16 features to accelerate sequence model training
+- **Pseudo-Sequence Generation**: Creates 10-frame temporal sequences from static GTSRB images
+- **Multiple Sequential Architectures**: RNN, GRU, LSTM (with attention), Transformer models
+- **Unified Training Pipeline**: Single training loop with advanced optimization for all model types
 
-## Prerequisites
+---
 
+## Deployment
+The Gradio app will:
+1. Load all 4 trained models from checkpoints/
+2. Display performance metrics from training_summary.json
+3. Allow model selection and comparison
+4. Show architecture details and test set results
+
+Link: ['https://huggingface.co/spaces/AhmedSamir1598/AutoVision-PerceptionHF']
+
+### Files Needed for Deployment
+
+#### Essential
+- `app.py` - Gradio interface
+- `requirements.txt` - Python dependencies
+- `src/` - Source code with models and utilities
+- `checkpoints/` - Trained model weights (*.pt files)
+- `results/training_summary.json` - Performance metrics
+
+#### Optional
+- `README_DEPLOYMENT.md` - Documentation
+- `scripts/` - Utility scripts
+- Training logs and confusion matrices
+
+### Troubleshooting
+
+#### Models Not Loading
+- Check checkpoint paths match: `checkpoints/{model_name}/{model_name}_best.pt`
+- Ensure model_metadata loads from: `results/{model_name}_metrics.json`
+
+#### Memory Issues
+- Transformer is optimized for CPU (220K params)
+- If using GPU Space, models will automatically use GPU
+- All models fit in <2GB RAM
+
+#### Import Errors
+- Ensure `requirements.txt` includes all dependencies
+- Run `pip install -r requirements.txt` locally first to test
+---
+
+##  Quick Start
+
+### Prerequisites
 - **Python 3.8+**
 - **CUDA 11.0+** (optional, for GPU acceleration)
-- **GPU Memory**: 4GB+ recommended (8GB+ for large batch sizes)
+### Installation
 
-## Installation
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/Mohamed-Elkady-05/AutoVision-Perception.git
+   cd AutoVision-Perception
+   ```
 
-### 1. Clone and Navigate to Project Directory
+2. **Create a virtual environment**
+   ```bash
+   # Windows
+   python -m venv venv
+   venv\Scripts\activate
 
-```bash
-cd AutoVision-Perception
-```
+   # Linux/macOS
+   python3 -m venv venv
+   source venv/bin/activate
+   ```
 
-### 2. Create a Virtual Environment (Recommended)
+3. **Install dependencies**
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-```bash
-# On Windows
-python -m venv venv
-venv\Scripts\activate
+4. **Download the GTSRB dataset**
+   - The notebook automatically downloads from Kaggle using `kagglehub`
 
-# On Linux/macOS
-python3 -m venv venv
-source venv/bin/activate
-```
+5. **Verify installation**
+   ```bash
+   python -c "import torch; print(f'PyTorch: {torch.__version__}, CUDA {torch.cuda.is_available()}')"
+   ```
 
-### 3. Install Dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
-**Dependencies:**
-- `torch` - Deep learning framework
-- `torchvision` - Computer vision utilities
-- `numpy` - Numerical computing
-- `scikit-learn` - Machine learning utilities
-- `scikit-image` - Image processing
-- `Pillow` - Image handling
-- `matplotlib` - Visualization
-- `seaborn` - Statistical visualization
-
-### 4. Verify Installation
-
-```bash
-python -c "import torch; print(f'PyTorch version: {torch.__version__}'); print(f'CUDA available: {torch.cuda.is_available()}')"
-```
+---
 
 ## Project Structure
 
 ```
 AutoVision-Perception/
-├── phase_3.ipynb                 # Main Phase 3 notebook
-├── README.md                       # This file
-├── requirements.txt                # Python dependencies
-├── data/                           # Dataset directory
-│   └── [image sequences]
+│
+├── phase_3.ipynb                 # Main Phase 3 Jupyter notebook
+├── README.md                     # This file
+├── requirements.txt              # Python dependencies
+│
 ├── notebooks/
-│   ├── eda_initial_notebook.ipynb  # Exploratory data analysis
-│   └── phase2_cnn_train.ipynb      # Phase 2 CNN training
-├── reports/
-│   └── [training outputs & metrics]
-└── src/
-    ├── config.py                   # Centralized configuration
-    ├── pipeline_example.py          # Example pipeline
-    ├── detection/
-    │   ├── CNN_model.py            # CNN architecture
-    │   ├── feature_extractor_vgg16.py # VGG16 feature extraction
-    │   └── sequence_dataset.py      # Temporal sequence dataset
-    ├── models/
-    │   ├── base_sequential_models.py  # RNN, GRU base classes
-    │   ├── baselines.py              # Baseline models
-    │   ├── ensamble.py               # Ensemble methods
-    │   ├── grid_search.py            # Hyperparameter search
-    │   ├── ModelsP3_experiment.py    # Phase 3 experiments
-    │   ├── rnn_training_smoke.py     # Real-data RNN training entrypoint
-    │   └── unified_trainer.py        # Unified training loop
-    ├── preprocessing/
-    │   ├── feature_extraction.py    # Feature extraction utilities
-    │   └── gtsrb_sequence_preprocessing.py # Pseudo-sequence builder and feature cache
-    └── utils/
-        ├── cnn_feature_visualization.py  # Visualization tools
-        ├── student_implementations.py    # Student templates
-        ├── visualize_rnn_sequences.py    # Real sequence visualization helper
-        └── trainer_opt.py                # Training optimization
+│   ├── eda_initial_notebook.ipynb      # Exploratory data analysis (Phase 1)
+│   └── phase2_cnn_train.ipynb          # Phase 2 CNN training
+|   └── phase3.ipynb                    # pahse 3 RNN and sequential models
+│
+├── reports/                      # Training metrics & curves
+│
+├── src/                          # Core source code
+│   ├── config.py                 # Centralized configuration
+│   │
+│   ├── detection/                # Detection & feature extraction
+│   │   ├── CNN_model.py          # Custom CNN architecture (Phase 2)
+│   │   ├── feature_extractor_vgg16.py  # VGG16 feature extraction (Phase 3)
+│   │   └── sequence_dataset.py   # Temporal sequence dataset (Phase 3)
+│   │
+│   ├── models/
+│   │   ├── base_sequential_models.py   # RNN, GRU, LSTM, Transformer (Phase 3)
+│   │   ├── baselines.py                # KNN & Naive Bayes (Phase 1)
+│   │   ├── ensamble.py                 # Random Forest, AdaBoost,    
+|   |   |                               Gradient Boosting 
+│   │   │                                 Voting Ensemble (Phase 1)
+│   │   ├── grid_search.py              # Hyperparameter search (Phase 1)
+│   │   ├── unified_trainer.py          # Unified training loop (Phase 3)
+│   │   └── rnn_training_smoke.py       # Real-data RNN training entrypoint
+│   │
+│   ├── preprocessing/
+│   │   ├── feature_extraction.py      # HOG + Color Histogram features (Phase 1)
+│   │   └── gtsrb_sequence_preprocessing.py  # Pseudo-sequence builder (Phase 3)
+│   │
+│   └── utils/
+│       ├── cnn_feature_visualization.py   # CNN feature maps (Phase 2)
+│       ├── visualize_rnn_sequences.py     # Sequence predictions (Phase 3)
+│       ├── sequence_xai.py                # Explainability (Phase 3)
+│       └── trainer_opt.py                 # Training optimizations
+│
+├── checkpoints/                  # Saved model weights
+├── cache/                        # Cached VGG16 features
+├── data/                         # Dataset directory
+└── results/                      # Experiment results
 ```
 
-## Quick Start
+---
+## Phase 1: Classical Machine Learning
 
-### Option 1: Run the Main Notebook
+### Feature Extraction
+- **HOG (Histogram of Oriented Gradients)**: Captures edge and gradient information
+- **Color Histograms**: 32 bins per RGB channel (96 total features)
+- **Combined Feature Vector**: 420-dimensional features (HOG + color histograms)
+### Dimensionality Reduction
+- **PCA (Principal Component Analysis)**: Variance-based feature reduction
+  - 95% variance threshold
+  - StandardScaler for feature normalization
+### Ensemble Learning
+- using 3 models 
+	1. Random Forest Classifier  
+	2. Histogram Gradient Boosting Classifier
+	3. AdaBoost Classifier
+### Grid Search for optimal Hyperparameters
+- applying grid search on 2 parameters:
+	1. neighbors count `[3, 5, 7]`
+	2. knn weights `[uniform, distance]`
+### Classifiers Evaluated
+| Classifier                  | Type              | Best F1 Score |
+| :-------------------------- | :---------------- | :------------ |
+| K-Nearest Neighbors         | Distance-based    | ~0.964        |
+| Naive Bayes (Gaussian)      | Probabilistic     | ~0.665        |
+| Random Forest               | Bagging Ensemble  | ~0.664        |
+| Voting Ensemble (RF+Ada+GB) | Boosting Ensemble | ~0.856        |
 
-```bash
-jupyter notebook phase_3.ipynb
+### Hyperparameter Optimization
+- **Grid Search** over:
+  - KNN: `n_neighbors` (3, 5, 7), `weights` (uniform, distance)
+  - Random Forest: `n_estimators` (100, 200), `max_depth` (None, 15, 30)
+  - Gradient Boosting: `n_estimators` (50, 100), `learning_rate` (0.1, 0.2)
+
+### Key Findings
+- **KNN with PCA (95% variance)** achieved the best performance: ~96% accuracy
+- Ensemble methods (Voting) achieved ~89% accuracy with 95% PCA
+- Raw pixel features performed poorly; feature extraction is essential
+
+### Code Examples
+
+```python
+from src.preprocessing.feature_extraction import FeatureExtractor
+from src.models.baselines import BaselineModels
+
+# Extract HOG + color histogram features
+fe = FeatureExtractor(resize=(32, 32))
+features = fe.extract_from_list(images)
+
+# Train KNN and Naive Bayes
+model = BaselineModels(knn_k=5, use_scaler=True, use_pca=False)
+model.fit(X_train, y_train)
+
+# Evaluate
+knn_metrics = model.evaluate(X_test, y_test, model='knn')
+nb_metrics = model.evaluate(X_test, y_test, model='nb')
+
+---
+
+## Phase 2: Deep Learning - CNNs
+
+**Objective**: Learn hierarchical features end-to-end using convolutional neural networks.
+
+### Custom CNN Architecture
+```
+Input: 32x32x3
+├── Conv1 (3→32, 3x3) → ReLU → MaxPool(2x2)
+├── Conv2 (32→64, 3x3) → ReLU → MaxPool(2x2)  
+├── Conv3 (64→128, 3x3) → ReLU → MaxPool(2x2)
+├── Flatten → FC1 (128*4*4 → 512) → ReLU
+├── Dropout(0.5)
+└── FC2 (512 → 43) → Output
 ```
 
-Execute cells sequentially to:
-1. Load and configure the pipeline
-2. Extract VGG16 features
-3. Create sequence dataloaders
-4. Train models (RNN, GRU)
-5. Evaluate and compare results
+### Transfer Learning
+- **VGG16** pretrained on ImageNet
+- Extract 512-dimensional features from layer_30
+- Features cached for efficient reuse in Phase 3
 
-### Option 2: Run Python Scripts
+### Feature Visualization
+- **Activation Maps**: Visualize intermediate conv layer outputs
+- **Filter Visualization**: Show learned kernel patterns
+- **Confidence Bar Plots**: Top-k class predictions with probabilities
 
-#### Extract VGG16 Features
+### Code Examples
 
-```bash
-python -c "
-from src.detection.feature_extractor_vgg16 import VGG16FeatureExtractor
-from src.config import FeatureExtractorConfig
+```python
+from src.detection.CNN_model import TrafficSignCNN
+from src.utils.cnn_feature_visualization import CNNFeatureMapVisualizer
 
-config = FeatureExtractorConfig()
-extractor = VGG16FeatureExtractor(config)
-features = extractor.extract_and_cache(
-    image_paths=['path/to/images/'],
-    cache_key='my_dataset'
-)
-print(f'Extracted features shape: {features.shape}')
-"
+# Create model
+model = TrafficSignCNN(num_classes=43)
+
+# Visualize feature maps
+visualizer = CNNFeatureMapVisualizer(model, device='cuda')
+visualizer.run_from_test_loader(test_loader, num_samples=5, output_dir='viz/')
 ```
 
-#### Create Sequence DataLoaders
+---
+
+## Phase 2: Convolution Neural Networks
+
+### 1. Custom CNN Architecture
+A custom CNN model (`TrafficSignCNN`) was implemented with the following architecture:
+- Multiple convolutional layers for feature extraction
+- Max pooling layers for dimensionality reduction
+- Fully connected layers for classification
+- Output layer with 43 classes (one for each traffic sign type)
+
+### 2. Data Preparation & Augmentation
+- **Training Transforms:**
+    - Resizing to 32×32 pixels
+    - Random rotation (±15 degrees)
+    - Color jitter for brightness variation
+    - Normalization to standardize pixel values
+- **Dataset Split:** 80% training, 20% validation (31,367 training images, 7,842 validation images)
+
+### 3. Training Configuration
+- **Optimizer:** Adam with learning rate 0.001 and L2 regularization (weight decay 1e-4)
+- **Loss Function:** Cross-entropy loss
+- **Epochs:** 10
+- **Batch Size:** 64
+- **Hardware:** GPU acceleration (CUDA)
+
+### Performance Results
+The custom CNN achieved **99.17% validation accuracy** after 10 epochs, with training loss decreasing from 1.98 to 0.038.
+
+### Transfer Learning Experiments
+Two pre-trained models were fine-tuned using a two-phase training approach:
+#### Methodology
+1. **Warm-up Phase (5 epochs):** Only the classification head is trained while the base model remains frozen
+2. **Fine-tuning Phase (10 epochs):** The entire network is unfrozen and trained with a very low learning rate (1e-5)
+
+#### Models Evaluated
+
+##### MobileNetV2
+- **Baseline Accuracy (after warm-up):** 46.33%
+- **Final Accuracy (after fine-tuning):** 64.05%
+- **Characteristics:** Lightweight model, suitable for mobile/edge deployment
+##### VGG16
+- **Baseline Accuracy (after warm-up):** 71.60%
+- **Final Accuracy (after fine-tuning):** 98.80%
+- **Characteristics:** Deeper architecture, higher accuracy, computationally intensive
+
+#### Key Insights
+- Fine-tuning significantly improved both models (MobileNetV2: +17.72%, VGG16: +27.20%)
+- VGG16 achieved accuracy comparable to the custom CNN (98.80% vs 99.17%)
+- Transfer learning requires significantly less training time than training from scratch
+### Optimizer Comparison
+Four optimizers were compared using the custom CNN architecture for 5 epochs each:
+
+| Optimizer   | Final Accuracy | Min Loss |
+| ----------- | -------------- | -------- |
+| **RMSProp** | 99.08%         | 0.0298   |
+| **Adam**    | 98.93%         | 0.0363   |
+| **AdaGrad** | 46.39%         | 1.7040   |
+| **SGD**     | 36.70%         | 2.0165   |
+
+#### Observations
+- **Adam and RMSProp** performed exceptionally well, both achieving >98% accuracy
+- **RMSProp** slightly outperformed Adam (99.08% vs 98.93%)
+- **AdaGrad and SGD** performed poorly with default learning rates, indicating the need for careful hyperparameter tuning
+### Autoencoder for Image Denoising
+A convolutional autoencoder was implemented to demonstrate noise reduction capabilities:
+#### Architecture
+- **Encoder:** Three convolutional layers with ReLU activation
+- **Decoder:** Three transposed convolutional layers with Sigmoid activation (output range `[0,1]`)
+
+#### Training Configuration
+- **Noise Type:** Gaussian noise (mean=0, std=0.1)
+- **Loss Function:** MSE (Mean Squared Error)
+- **Epochs:** 5
+- **Optimizer:** Adam `(lr=0.001)`
+
+#### Results
+- Successfully learned to reconstruct clean images from noisy inputs 
+- MSE loss decreased from 0.0195 to 0.0041 over 5 epochs
+- Visualizations demonstrate effective noise removal while preserving traffic sign features
+
+### Key Findings & Conclusions
+1. **Custom CNN Performance:** A well-designed CNN can achieve >99% accuracy on traffic sign classification with proper training.
+2. **Transfer Learning Effectiveness:** Fine-tuning pre-trained models (especially VGG16) achieves near-state-of-the-art performance with less training time.
+3. **Optimizer Selection:** Adam and RMSProp are excellent default choices for this task, outperforming SGD and AdaGrad significantly.
+4. **Data Augmentation Benefits:** Random rotation and color jitter improved model robustness.
+5. **Autoencoder Viability:** Convolutional autoencoders can effectively denoise traffic sign images, which could improve classification in real-world scenarios with noisy input.
+## Phase 3: Sequential & Transformer Models
+
+### Pipeline Steps
+
+#### 1. Pseudo-Sequence Generation
+- Treat GTSRB as ordered image corpus (sorted within each class)
+- Create 10-frame sequences with stride 2
+- Each sequence saved as `.npz` with metadata (class label, frame indices, timestamps)
+- **Leakage-safe grouped splits**: Ensures no frame overlap between train/val/test
+
+#### 2. Feature Extraction & Caching
+- Extract 512-dimensional VGG16 features for all frames
+- Cache features to `cache/vgg16_sequence_features/` for rapid training
+- Precompute features once, reuse across all sequential models
+
+#### 3. Sequential Models (Unified Interface)
+
+| Model           | Architecture           | Key Features                                                        |
+| :-------------- | :--------------------- | :------------------------------------------------------------------ |
+| **RNN**         | 2-layer, bidirectional | Vanilla RNN with mean pooling                                       |
+| **GRU**         | 2-layer, bidirectional | Gated recurrent units, faster training                              |
+| **LSTM**        | 2-layer, bidirectional | Long short-term memory + additive attention                         |
+| **Transformer** | 1-layer encoder        | Multi-head self-attention (4 heads), sinusoidal positional encoding |
+
+#### 4. Unified Training
+- Single trainer compatible with all models
+- Multiple optimizers: Adam, SGD, AdamW
+- Learning rate schedulers: Step, Cosine, ReduceLROnPlateau
+- Early stopping with configurable patience
+- Best model checkpointing
+### Running Phase 3
 
 ```bash
-python -c "
-from src.detection.sequence_dataset import create_sequence_dataloaders
-
-train_loader, val_loader, test_loader = create_sequence_dataloaders(
-    features_dir='./cache/vgg16_sequence_features',
-    batch_size=32
-)
-print(f'Train batches: {len(train_loader)}')
-print(f'Val batches: {len(val_loader)}')
-print(f'Test batches: {len(test_loader)}')
-"
-```
-
-#### Build the real pseudo-sequences and cached features
-
-```bash
+# 1. Generate pseudo-sequences and cache VGG16 features
 python -m src.preprocessing.gtsrb_sequence_preprocessing
-```
 
-#### Train the RNN on the real cache
-
-```bash
+# 2. Train models (each for 50 epochs)
 python -m src.models.rnn_training_smoke
-```
-
-#### Train the GRU model
-
-```bash
-python -m src.models.gru_training_smoke
-```
-
-#### Train the LSTM model
-
-```bash
-python -m src.models.lstm_training_smoke
-```
-
-#### Train the Transformer model
-
-```bash
 python -m src.models.transformer_training_smoke
-```
 
-#### Visualize saved sequence frames with RNN predictions
+# 3. Run complete experiment (train all 4 models)
+python src/models/ModelsP3_experiment.py
 
-```bash
+# 4. Visualize predictions with XAI
 python -m src.utils.visualize_rnn_sequences
 ```
 
-#### Launch the Hugging Face Space app locally
-
-```bash
-python app.py
-```
-
-The app accepts either a cached sequence `.npz` file or a single image fallback. It returns the predicted class, confidence, and a saved explanation plot.
-
-#### Explainability outputs
-
-Each training run now saves a matching XAI artifact in `results/`, for example:
-
-- `results/RNN_xai.png`
-- `results/GRU_xai.png`
-- `results/LSTM_xai.png`
-- `results/Transformer_xai.png`
-
-#### Train a Model
-
-```bash
-python -c "
-from src.models.base_sequential_models import RNNModel, create_model
-from src.models.unified_trainer import UnifiedTrainer
-from src.config import TrainingConfig
-import torch
-
-# Create model
-model = RNNModel(
-    input_size=512,
-    hidden_size=256,
-    num_layers=2,
-    output_size=43,
-    dropout=0.3
-)
-
-# Create trainer
-config = TrainingConfig()
-trainer = UnifiedTrainer(
-    model=model,
-    train_loader=train_loader,
-    val_loader=val_loader,
-    config=config,
-    device='cuda' if torch.cuda.is_available() else 'cpu'
-)
-
-# Train
-trainer.train(num_epochs=50)
-
-# Evaluate
-metrics = trainer.evaluate(test_loader)
-print(f'Test Accuracy: {metrics[\"accuracy\"]:.4f}')
-"
-```
-
-## Core Components
-
-### 1. Configuration System (`src/config.py`)
-
-Centralized configuration management for all pipeline components.
-
-**Key Classes:**
-- `DatasetConfig` - Sequence parameters, normalization settings
-- `FeatureExtractorConfig` - VGG16 settings, cache paths
-- `SequentialModelConfig` - Model architecture specifications
-- `TrainingConfig` - Optimization, learning rates, schedulers
-- `EvaluationConfig` - Metrics and visualization settings
-
-**Usage:**
-```python
-from src.config import TrainingConfig
-
-config = TrainingConfig()
-config.learning_rate = 0.001
-config.batch_size = 32
-config.num_epochs = 50
-```
-
-### 2. Feature Extraction (`src/detection/feature_extractor_vgg16.py`)
-
-Extracts and caches deep CNN features using pretrained VGG16.
-
-**Key Methods:**
-- `extract_single(image)` → (512,) feature vector
-- `extract_sequence(images)` → (seq_len, 512) features
-- `extract_batch(image_paths)` → (num_images, 512) features
-- `extract_and_cache(image_paths, cache_key)` → cached features
-
-### 3. Sequence Dataset (`src/detection/sequence_dataset.py`)
-
-Loads precomputed sequence features with metadata and synthetic fallback support.
-
-### 4. Pseudo-sequence Preprocessing (`src/preprocessing/gtsrb_sequence_preprocessing.py`)
-
-Creates pseudo-sequences from the archived GTSRB class folders and precomputes the VGG16 sequence cache.
-
-### 5. RNN Smoke Trainer (`src/models/rnn_training_smoke.py`)
-
-Trains the RNN for 50 epochs on the real cache and writes the checkpoint, metrics, curves, and confusion matrix.
-
-### 6. Sequence Visualizer (`src/utils/visualize_rnn_sequences.py`)
-
-Renders saved frames from the real sequence cache and overlays the RNN predictions.
-
-Generated artifacts are ignored by Git:
-
-- `archive/`
-- `archive.zip`
-- `data/`
-- `cache/`
-- `checkpoints/`
-- `results/`
-
-**Key Features:**
-- Temporal sequence generation (10-frame default)
-- Stratified train/val/test split
-- Temporal augmentation (flip, noise, frame dropping)
-- Synthetic data generation for testing
-
-### 4. Sequential Models (`src/models/base_sequential_models.py`)
-
-Base classes and implementations for sequential architectures.
-
-**Available Models:**
-- `RNNModel` - Vanilla RNN
-- `GRUModel` - Gated Recurrent Unit
-- `LSTMModel` - LSTM with attention (template)
-- `TransformerModel` - Multi-head Transformer (template)
-
-**Usage:**
-```python
-from src.models.base_sequential_models import create_model
-
-model = create_model(
-    model_name='rnn',
-    config_dict={'input_size': 512, 'hidden_size': 256},
-    device='cuda'
-)
-```
-
-### 5. Unified Trainer (`src/models/unified_trainer.py`)
-
-Single training loop compatible with all model architectures.
-
-**Features:**
-- Multiple optimizers (Adam, SGD, AdamW)
-- Learning rate schedulers (step, cosine, reduce_on_plateau)
-- Early stopping with patience
-- Best model checkpointing
-- Comprehensive metrics computation
-- Training visualization
+---
 
 ## Configuration
 
-Edit `src/config.py` to customize pipeline behavior:
+All pipeline parameters centralized in `src/config.py`:
 
 ```python
-# Dataset configuration
-dataset_config = DatasetConfig()
-dataset_config.sequence_length = 10  # Number of frames per sequence
-dataset_config.train_ratio = 0.7
-dataset_config.val_ratio = 0.15
+from src.config import TrainingConfig, SequentialModelConfig
 
-# Training configuration
-train_config = TrainingConfig()
-train_config.num_epochs = 50
-train_config.batch_size = 32
-train_config.learning_rate = 0.001
-train_config.optimizer_type = 'adam'  # 'adam', 'sgd', or 'adamw'
-train_config.scheduler_type = 'cosine'  # 'step', 'cosine', or 'reduce_on_plateau'
+# Training settings
+train_cfg = TrainingConfig()
+train_cfg.NUM_EPOCHS = 50
+train_cfg.BATCH_SIZE = 32
+train_cfg.LEARNING_RATE = 0.001
+train_cfg.OPTIMIZER_TYPE = 'adam'      # 'adam', 'sgd', 'adamw'
+train_cfg.SCHEDULER_TYPE = 'cosine'    # 'step', 'cosine', 'reduce_on_plateau'
 
-# Model configuration
-model_config = SequentialModelConfig()
-model_config.hidden_size = 256
-model_config.num_layers = 2
-model_config.dropout = 0.3
-```
-
-## Data Augmentation
-
-Data augmentation is applied **only during training** to improve model robustness and prevent overfitting. Augmentation is implemented in `src/detection/sequence_dataset.py` and operates on temporal sequences of features.
-
-### Augmentation Techniques
-
-1. **Temporal Frame Reversal** (30% probability)
-   - Reverses the order of frames within each sequence
-   - Exposes the model to backward temporal patterns
-   - Regularizes the model to capture bidirectional dependencies
-   - Implementation: `sequence = sequence[::-1]`
-
-2. **Gaussian Noise Injection** (20% probability)
-   - Adds small random Gaussian noise to feature values
-   - Noise scale: `std_dev = 0.05` of feature magnitude
-   - Improves robustness to minor feature perturbations
-   - Implementation: `sequence += np.random.randn(*sequence.shape) * 0.05`
-
-### Configuration
-
-Augmentation settings are controlled in `src/config.py`:
-
-```python
-# Enable/disable augmentation per split
-dataset_config.augment_train = True    # Apply to training split
-dataset_config.augment_val = False     # No augmentation on validation
-dataset_config.augment_test = False    # No augmentation on test
-
-# Augmentation probabilities (in sequence_dataset.py)
-TEMPORAL_FLIP_PROB = 0.3
-NOISE_INJECTION_PROB = 0.2
-NOISE_SCALE = 0.05
-```
-
-### Benefits
-
-- **Temporal Regularization**: Prevents the model from learning overly-specific frame orderings
-- **Feature Robustness**: Noise injection simulates feature extraction variance
-- **Reduced Overfitting**: Increases effective training data diversity
-- **No Information Loss**: Both augmentations are mathematically invertible
-
----
-
-## Data Processing Pipeline
-
-This section describes the complete workflow from downloading the GTSRB dataset from Kaggle to training on cached features.
-
-### Step 1: Download from Kaggle
-
-Visit [GTSRB Dataset on Kaggle](https://www.kaggle.com/datasets/meowmeowmeowmeowmeow/gtsrb-german-traffic-sign) and download the dataset.
-
-**Expected structure after extraction:**
-```
-archive/
-├── Train/
-│   ├── 0/
-│   │   ├── 00000.ppm
-│   │   ├── 00001.ppm
-│   │   └── ...
-│   ├── 1/
-│   │   ├── 00000.ppm
-│   │   └── ...
-│   └── ... (42 total classes)
-└── Test/
-    └── (optional, not used in Phase 3)
-```
-
-The dataset contains **43 traffic sign classes** (0-42) with images in `.ppm` format.
-
-### Step 2: Create Pseudo-Sequences from Archive
-
-The preprocessing pipeline (`src/preprocessing/gtsrb_sequence_preprocessing.py`) treats the GTSRB archive as an **ordered image corpus** rather than a native video dataset.
-
-**Process:**
-1. Read all images from each class folder: `archive/Train/<class_id>/`
-2. Sort images alphabetically within each class
-3. Create overlapping temporal windows using a **sliding window**:
-   - **Window size (sequence length)**: 10 frames
-   - **Stride**: 2 frames (produces overlapping sequences)
-   - Creates pseudo-video sequences from static images
-4. Save each sequence as a `.npz` file with metadata
-
-**Example:**
-```
-Class 0 images: [00000.ppm, 00001.ppm, 00002.ppm, ..., 00500.ppm]
-
-Sequences created (with stride=2):
-- Seq 0: frames [00000-00009]
-- Seq 1: frames [00002-00011]
-- Seq 2: frames [00004-00013]
-- ... (continues every 2 frames)
-```
-
-**Output:** `data/preprocessed_sequences/{split}/{class}/*.npz`
-- Each `.npz` contains:
-  - `frames`: stacked image array shape (10, H, W, 3)
-  - `metadata`: JSON with sequence ID, start frame, class label, timestamps
-
-### Step 3: Precompute VGG16 Features
-
-Feature extraction is performed once and cached to avoid recomputation (`SequenceFeaturePrecomputer` in `gtsrb_sequence_preprocessing.py`).
-
-**Process:**
-1. Load each sequence's 10 frames from `.npz`
-2. Extract features using **pretrained VGG16** (before classification layer)
-3. Output: **512-dimensional feature vectors** per frame
-4. Cache features as compressed `.npz` files
-
-**Output:** `cache/vgg16_sequence_features/{split}/{class}/*.npz`
-- Each cached file contains:
-  - `features`: shape (10, 512) - sequence of feature vectors
-  - `metadata`: preserved from preprocessing step
-
-**Why VGG16?**
-- Pretrained on ImageNet: captures universal image patterns
-- 512-dimensional output: rich representation, computationally efficient
-- Proven performance on traffic sign recognition tasks
-- Transfer learning reduces need for large training data
-
-### Step 4: Generate Leakage-Safe Train/Val/Test Splits
-
-The `regenerate_grouped_feature_splits()` function creates **non-overlapping, leakage-free splits**:
-
-**Leakage Prevention Strategy:**
-1. **Filter Non-Overlapping Windows**
-   - Keep only sequences where `start_frame % sequence_length == 0`
-   - Ensures no frame appears in multiple sequences across splits
-   
-2. **Group by Source Segment**
-   - Related sequences from the same image block stay together
-   - `group_key = f"{source}::segment_{start_frame // (seq_len * group_size)}"`
-   
-3. **Stratified Split by Group**
-   - Split at the **group level**, not individual sequence level
-   - Prevents frames from one group appearing in both train and test
-
-**Result:**
-- **Train**: 2,654 sequences (70%)
-- **Validation**: 529 sequences (15%)
-- **Test**: 737 sequences (15%)
-- **Total**: 3,920 non-overlapping sequences across 43 classes
-
-### Step 5: Load and Train on Cached Features
-
-The `SequenceDataset` loads cached features efficiently:
-
-```python
-from src.detection.sequence_dataset import create_sequence_dataloaders
-
-# Automatically detects train/val/test split folders
-train_loader, val_loader, test_loader = create_sequence_dataloaders(
-    features_dir="./cache/vgg16_sequence_features",
-    batch_size=32,
-    augment=True  # Enables augmentation for training split
-)
-```
-
-**Data Flow:**
-```
-cache/vgg16_sequence_features/
-├── train/ → SequenceDataset (apply augmentation)
-│           → DataLoader (shuffled batches)
-├── val/   → SequenceDataset (no augmentation)
-│           → DataLoader (ordered batches)
-└── test/  → SequenceDataset (no augmentation)
-            → DataLoader (ordered batches)
-```
-
-### Complete Pipeline Command
-
-To run the entire preprocessing and feature caching pipeline:
-
-```bash
-python -c "
-from src.preprocessing.gtsrb_sequence_preprocessing import (
-    SequencePreprocessor,
-    SequenceFeaturePrecomputer,
-    regenerate_grouped_feature_splits
-)
-from pathlib import Path
-
-# Step 1: Create pseudo-sequences from archive
-preprocessor = SequencePreprocessor()
-for split in ['train', 'val', 'test']:
-    preprocessor.preprocess_all(split=split)
-
-# Step 2: Precompute VGG16 features
-precomputer = SequenceFeaturePrecomputer(device='cuda')
-precomputer.precompute_all_splits(splits=['train', 'val', 'test'])
-
-# Step 3: Generate leakage-safe splits
-regenerate_grouped_feature_splits()
-
-print('✓ Data processing complete!')
-print('✓ Cached features ready in: cache/vgg16_sequence_features/')
-"
-```
-
-Or run directly:
-```bash
-python -m src.preprocessing.gtsrb_sequence_preprocessing
+# Sequential model settings
+model_cfg = SequentialModelConfig()
+model_cfg.SEQUENCE_LENGTH = 10
+model_cfg.INPUT_SIZE = 512
+model_cfg.HIDDEN_SIZE = 256
+model_cfg.NUM_LAYERS = 2
+model_cfg.DROPOUT = 0.3
+model_cfg.BIDIRECTIONAL = True
 ```
 
 ---
-
-## Running Experiments
-
-### Run Complete Pipeline
-
-```bash
-python src/utils/student_implementations.py
-```
-
-This executes:
-1. VGG16 feature extraction
-2. Sequence dataset creation
-3. Model training (RNN, GRU)
-4. Evaluation and comparison
-
-### Run Hyperparameter Grid Search
-
-```bash
-python src/models/grid_search.py
-```
-
-Searches over parameter ranges defined in `GridSearchConfig`.
-
-### Run Model Ensemble
-
-```bash
-python -c "
-from src.models.ensamble import EnsembleModel
-from src.models.base_sequential_models import RNNModel, GRUModel
-
-# Create ensemble
-rnn = RNNModel(512, 256, 2, 43)
-gru = GRUModel(512, 256, 2, 43)
-ensemble = EnsembleModel(models=[rnn, gru], weights=[0.5, 0.5])
-
-# Use like a regular model
-output = ensemble(batch_tensor)
-"
-```
 
 ## Results & Evaluation
 
-### Generate Training Curves
+### Phase 1 Results
 
-```python
-trainer.save_training_curves(output_dir='reports/')
-# Outputs: training_curves.png
-```
+| Model                      | Accuracy | Precision | Recall | F1 Score |
+| :------------------------- | :------: | :-------: | :----: | :------: |
+| KNN                        |  88.0%   |   89.5%   | 87.8%  |  88.4%   |
+| Naive Bayes                |  44.2%   |   63.6%   | 46.5%  |  50.8%   |
+| Random Forest (Bagging)    |  73.9%   |   87.4%   | 61.4%  |  66.4%   |
+| Voting Ensemble (Boosting) |  89.2%   |   90.8%   | 82.1%  |  85.6%   |
 
-### Export Metrics
+### Phase 2 Results
+...
+### Phase 3 Results
 
-```python
-metrics = trainer.evaluate(test_loader)
-trainer.save_metrics_json(metrics, output_dir='reports/')
-# Outputs: metrics.json with accuracy, precision, recall, F1, confusion matrix
-```
-
-### Metrics Included
-
-- **Accuracy** - Overall classification accuracy
-- **Precision** - Per-class precision
-- **Recall** - Per-class recall
-- **F1-Score** - Harmonic mean of precision and recall
-- **Confusion Matrix** - Prediction breakdown
-- **Training Curves** - Loss and accuracy over epochs
-
-## GPU Acceleration
-
-The framework automatically detects CUDA availability. To force CPU:
-
-```python
-import torch
-device = 'cpu'  # or 'cuda' for GPU
-
-trainer = UnifiedTrainer(
-    model=model,
-    train_loader=train_loader,
-    val_loader=val_loader,
-    config=config,
-    device=device
-)
-```
-
-Check GPU status:
-```bash
-python -c "import torch; print(f'CUDA Available: {torch.cuda.is_available()}'); print(f'Current Device: {torch.cuda.current_device()}')"
-```
-
-## Troubleshooting
-
-| Issue | Solution |
-|-------|----------|
-| `ModuleNotFoundError: No module named 'torch'` | Run `pip install -r requirements.txt` |
-| `CUDA out of memory` | Reduce `batch_size` in config or use CPU |
-| `Feature cache not found` | Run feature extraction first using `VGG16FeatureExtractor` |
-| `No data found` | Ensure images are in `data/` directory with correct structure |
-| Slow training on CPU | Enable CUDA with `device='cuda'` |
-
-## References
-
-- [PyTorch Documentation](https://pytorch.org/docs)
-- [Torchvision Models](https://pytorch.org/vision/stable/models.html)
-- [Traffic Sign Recognition Dataset (GTSRB)](http://benchmark.ini.rub.de/?section=gtsrb&subsection=news)
+| Model       | Accuracy | Precision | Recall | F1 score |
+| ----------- | :------: | :-------: | :----: | :------: |
+| RNN         |  84.5%   |   79.5%   | 79.5%  |  79.5%   |
+| GRU         |  83.1%   |   78.8%   | 78.3%  |  77.0%   |
+| LSTM        |  83.1%   |   77.7%   | 79.5%  |  77.1%   |
+| Transformer |  85.7%   |   81.1%   | 81.1%  |  75.0%   |
 
 ---
 
+## GPU Acceleration
+
+The framework automatically detects CUDA-capable GPUs:
+
+```python
+import torch
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
+trainer = UnifiedTrainer(model, train_loader, val_loader, device=device)
+```
+---
+## References
+
+- [German Traffic Sign Recognition Benchmark (GTSRB)](http://benchmark.ini.rub.de/)
+- [PyTorch Documentation](https://pytorch.org/docs/stable/index.html)
+- [Torchvision Models](https://pytorch.org/vision/stable/models.html)
+---
+
 **Last Updated:** May 2026  
-**Version:** 3.0 - Phase 3 Implementation
+**Current Version:** 3.0 - Phase 3 Implementation
