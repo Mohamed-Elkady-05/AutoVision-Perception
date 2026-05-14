@@ -423,6 +423,15 @@ python src/models/ModelsP3_experiment.py
 python -m src.utils.visualize_rnn_sequences
 ```
 
+### XAI Analysis
+
+Gradient Saliency (GS) was applied to all four sequential models to interpret their predictions. Each model produces two outputs in the `/results/` directory:
+
+- `{model_name}_xai.json` – GS values per frame
+- `{model_name}_xai.png` – Frame importance graph
+
+**Example:** GRU → `GRU_xai.json` and `GRU_xai.png`
+
 ---
 
 ## Configuration
